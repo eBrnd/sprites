@@ -39,33 +39,43 @@ struct RGBColor {
 };
 
 struct HSVColor {
-  float h, s, v;
-
-  RGBColor to_rgb() const {
-    const int hi = h / 60;
-    const float f = h / 60 - hi;
-    const float p = v * (1 - s);
-    const float q = v * (1 - s * f);
-    const float t = v * (1 - s * (1 - f));
-
-    float r, g, b;
-    switch (hi) {
-      case 0: case 6: r = v; g = t; b = p; break;
-      case 1: r = q; g = v; b = p; break;
-      case 2: r = p; g = v; b = p; break;
-      case 3: r = p; g = q; b = v; break;
-      case 4: r = t; g = p; b = v; break;
-      case 5: r = v; g = p; b = q; break;
-      default:
-        throw std::range_error("hue out of range");
+  public:
+    HSVColor(float h, float s, float v) : s(s), v(v) {
+      while (h > 360)
+        h -= 360;
+      this->h = h;
     }
 
-    return RGBColor{
-      static_cast<unsigned char>(r * 255),
-      static_cast<unsigned char>(g * 255),
-      static_cast<unsigned char>(b * 255)
-    };
-  }
+    RGBColor to_rgb() const {
+      const int hi = h / 60;
+      const float f = h / 60 - hi;
+      const float p = v * (1 - s);
+      const float q = v * (1 - s * f);
+      const float t = v * (1 - s * (1 - f));
+
+      float r, g, b;
+      switch (hi) {
+        case 0: case 6: r = v; g = t; b = p; break;
+        case 1:         r = q; g = v; b = p; break;
+        case 2:         r = p; g = v; b = t; break;
+        case 3:         r = p; g = q; b = v; break;
+        case 4:         r = t; g = p; b = v; break;
+        case 5:         r = v; g = p; b = q; break;
+        default:
+          throw std::range_error("hue out of range");
+      }
+
+      return RGBColor{
+        static_cast<unsigned char>(r * 255),
+        static_cast<unsigned char>(g * 255),
+        static_cast<unsigned char>(b * 255)
+      };
+    }
+
+    float& value() { return v; }
+
+  private:
+    float h, s, v;
 };
 
 struct Pixel {
@@ -117,7 +127,8 @@ class Pixel_Sprite : public Sprite {
 
     // Starts a new sprite
     Pixel_Sprite(size_t position, const RGBColor& color, float max_velocity)
-      : position(position), max_velocity(max_velocity), velocity(0), age(0), color(color) { }
+      : position(position), max_velocity(max_velocity), velocity(0), age(0),
+        color(color), render_color{0,0,0} { }
 
   private:
     float position;
@@ -132,7 +143,7 @@ class Melting : public Sprite {
   public:
     void render(std::vector<Pixel>& stripe) const {
       auto render_color = color;
-      render_color.v *= dim();
+      render_color.value() *= dim();
       float ihwidth;
       float frhwidth = std::modf(width / 2, &ihwidth);
       const int ihw = ihwidth;
@@ -144,7 +155,7 @@ class Melting : public Sprite {
       }
 
       // Brightness interpolation for the two pixels at the end
-      render_color.v *= frhwidth;
+      render_color.value() *= frhwidth;
       if (position - ihw < static_cast<int>(stripe.size()) && position - ihw > 0)
         stripe[position - ihw - 1].color += render_color.to_rgb();
       if (position + ihw < static_cast<int>(stripe.size()) && position + ihw > 0)
@@ -160,7 +171,8 @@ class Melting : public Sprite {
     }
 
     Melting(unsigned int position, float hue)
-      : width(INITIAL_WIDTH), position(position), color(HSVColor{hue, 1, 1}), age(0) {
+      : width(INITIAL_WIDTH), position(position), color(HSVColor(hue, 1, 1)), age(0) {
+      std::cout << "New Melting - position: " << position << " hue: " << hue << std::endl;
     }
 
   private:
@@ -183,8 +195,8 @@ std::vector<char> serialize(const std::vector<Pixel>& stripe) {
   std::vector<char> res;
   res.reserve(stripe.size() * 3);
   for (auto& c : stripe) {
-    res.push_back(c.color.g);
     res.push_back(c.color.r);
+    res.push_back(c.color.g);
     res.push_back(c.color.b);
   }
   return res;
@@ -250,7 +262,14 @@ int main(int argc, char** argv) {
 
     // Insert new sprites
     static unsigned FC = 0;
-    FC++;
+    if (++FC >= 3600)
+      FC = 0;
+
+    /*for (size_t i = 0; i < stripe.size(); i++) {
+      auto hue = i / ((0.5f * STR_LEN) / 360.f);
+      hue += (FC / 10);
+      stripe[i].color = HSVColor(hue, 1, 1).to_rgb();
+    }*/
 
     if (FC % 32 == 0)
       sprites.push_back(std::shared_ptr<Sprite>(
@@ -258,9 +277,13 @@ int main(int argc, char** argv) {
                 RGBColor{col_dist(e), col_dist(e), col_dist(e)},
                 vel_dist(e))));
 
-    if (FC % 16 == 0)
+    if (FC % 16 == 0) {
+      auto pos = pos_dist(e);
+      auto hue = pos / ((0.5f * STR_LEN) / 360.f);
+      hue += (FC / 10);
       sprites.push_back(std::shared_ptr<Sprite>(
-            new Melting(pos_dist(e), hue_dist(e))));
+            new Melting(pos, hue)));
+    }
 
     // Render all sprites
     for (auto& sprite : sprites)
@@ -279,7 +302,7 @@ int main(int argc, char** argv) {
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - start
           ).count()
-        << "ms." << std::endl;
+        << "ms. Frame " << FC << std::endl;
     std::this_thread::sleep_until(start + std::chrono::milliseconds(80));
   }
 }
