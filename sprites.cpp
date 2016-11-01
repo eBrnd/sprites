@@ -107,8 +107,7 @@ class Melting : public Sprite {
   public:
     void render(std::vector<Pixel>& stripe) const {
       auto render_color = color;
-      const auto dim = static_cast<float>(INITIAL_WIDTH) / width;
-      render_color.v *= dim * dim;
+      render_color.v *= dim();
       float ihwidth;
       float frhwidth = std::modf(width / 2, &ihwidth);
       const int ihw = ihwidth;
@@ -128,24 +127,27 @@ class Melting : public Sprite {
     }
 
     bool update() {
-      age++;
-      width += 1;
-      return (age < 1000);
+      width += 0.2;
+      return (dim() > 1.f/255);
     }
 
     Melting(unsigned int position, float hue)
-      : width(INITIAL_WIDTH), position(position), age(0), color(HSVColor{hue, 1, 1}) {
+      : width(INITIAL_WIDTH), position(position), color(HSVColor{hue, 1, 1}) {
     }
 
   private:
     static float INITIAL_WIDTH;
     float width;
     int position;
-    unsigned int age;
     HSVColor color;
+
+    float dim() const {
+      const auto d = static_cast<float>(INITIAL_WIDTH) / width;
+      return d * d * d;
+    }
 };
 
-float Melting::INITIAL_WIDTH = 10;
+float Melting::INITIAL_WIDTH = 30;
 
 std::vector<char> serialize(const std::vector<Pixel>& stripe) {
   std::vector<char> res;
@@ -224,7 +226,7 @@ int main(int argc, char** argv) {
                 vel_dist(e))));*/
 
     static unsigned FC = 0;
-    if (FC++ % 4 == 0)
+    if (FC++ % 16 == 0)
       sprites.push_back(std::shared_ptr<Sprite>(
             new Melting(pos_dist(e), hue_dist(e))));
 
