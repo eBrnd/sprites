@@ -16,9 +16,9 @@ struct RGBColor {
   unsigned char r, g, b;
 
   RGBColor& operator+=(const RGBColor& o) {
-    r += o.r;
-    g += o.g;
-    b += o.b;
+    r = r + o.r > 255 ? 255 : r + o.r;
+    g = g + o.g > 255 ? 255 : g + o.g;
+    b = b + o.b > 255 ? 255 : b + o.b;
     return *this;
   }
 };
@@ -41,14 +41,14 @@ class Sprite {
     // Returns false if sprite can be removed from scene.
     bool update() {
       // Drift
-      position++;
+      position--;
 
       // Age and see if we're still alive
       return age++ <= 100;
     }
 
     // Starts a new sprite
-    Sprite(size_t position) : position(position), age(0), color{255,255,255} { }
+    Sprite(size_t position, const RGBColor& color) : position(position), age(0), color(color) { }
 
   private:
     size_t position;
@@ -60,8 +60,8 @@ std::vector<char> serialize(const std::vector<Pixel>& stripe) {
   std::vector<char> res;
   res.reserve(stripe.size() * 3);
   for (auto& c : stripe) {
-    res.push_back(c.color.r);
     res.push_back(c.color.g);
+    res.push_back(c.color.r);
     res.push_back(c.color.b);
   }
   return res;
@@ -114,7 +114,8 @@ int main(int argc, char** argv) {
   // PRNG for inserting new sprites.
   std::random_device r;
   std::default_random_engine e(r());
-  std::uniform_int_distribution<int> dist(0, STR_LEN - 1);
+  std::uniform_int_distribution<int> pos_dist(0, STR_LEN - 1);
+  std::uniform_int_distribution<unsigned char> col_dist(0, 255);
 
   for (;;) { // Frame loop
     // Set up clock so we can sleep at the end of the frame
@@ -123,7 +124,7 @@ int main(int argc, char** argv) {
     std::vector<Pixel> stripe(STR_LEN); // Frame buffer
 
     // Insert new sprites
-    sprites.push_back(Sprite(dist(e)));
+    sprites.push_back(Sprite(pos_dist(e), RGBColor{col_dist(e), col_dist(e), col_dist(e)}));
 
     // Render all sprites
     for (auto& sprite : sprites)
@@ -139,6 +140,6 @@ int main(int argc, char** argv) {
 
     sender.send(serialize(stripe));
 
-    std::this_thread::sleep_until(start + std::chrono::milliseconds(100));
+    std::this_thread::sleep_until(start + std::chrono::milliseconds(80));
   }
 }
