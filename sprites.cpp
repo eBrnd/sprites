@@ -44,7 +44,7 @@ class Sprite {
       position++;
 
       // Age and see if we're still alive
-      return age++ > 100;
+      return age++ <= 100;
     }
 
     // Starts a new sprite
