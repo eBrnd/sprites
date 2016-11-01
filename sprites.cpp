@@ -141,10 +141,10 @@ class Melting : public Sprite {
     }
 
     bool update() {
-      if (age++ < 100)
+      if (age++ < 200)
         return true;
 
-      width += 0.2;
+      width += 0.1;
       return (dim() > 1.f/255);
     }
 
@@ -160,8 +160,8 @@ class Melting : public Sprite {
     unsigned int age;
 
     float dim() const {
-      if (age < 100)
-        return (age * age) / 10000.f;
+      if (age < 200)
+        return (age * age) / 40000.f;
 
       const auto d = static_cast<float>(INITIAL_WIDTH) / width;
       return d * d * d;
@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
   std::default_random_engine e(r());
   std::uniform_int_distribution<int> pos_dist(0, STR_LEN - 1);
   std::uniform_int_distribution<unsigned char> col_dist(0, 255);
-  std::uniform_real_distribution<float> vel_dist(-2, 2);
+  std::uniform_real_distribution<float> vel_dist(-1, 1);
   std::uniform_real_distribution<float> hue_dist(0, 360);
 
   for (;;) { // Frame loop
@@ -264,8 +264,7 @@ int main(int argc, char** argv) {
     }
 
     sender.send(serialize(stripe));
-    std::cout << "Rendering " << sprites.size() << " sprites " <<
-        " took " <<
+    std::cout << "Rendering " << sprites.size() << " sprites took " <<
         std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - start
           ).count()
