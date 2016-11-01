@@ -171,9 +171,7 @@ class Melting : public Sprite {
     }
 
     Melting(unsigned int position, float hue)
-      : width(INITIAL_WIDTH), position(position), color(HSVColor(hue, 1, 1)), age(0) {
-      std::cout << "New Melting - position: " << position << " hue: " << hue << std::endl;
-    }
+      : width(INITIAL_WIDTH), position(position), color(HSVColor(hue, 1, 1)), age(0) { }
 
   private:
     const float INITIAL_WIDTH = 30;
@@ -253,6 +251,8 @@ int main(int argc, char** argv) {
   std::uniform_int_distribution<unsigned char> col_dist(0, 255);
   std::uniform_real_distribution<float> vel_dist(-1, 1);
   std::uniform_real_distribution<float> hue_dist(0, 360);
+  std::uniform_int_distribution<unsigned char> spawn_dist(0, 32);
+  std::uniform_real_distribution<float> hue_jitter_dist(-20, 20);
 
   for (;;) { // Frame loop
     // Set up clock so we can sleep at the end of the frame
@@ -271,16 +271,17 @@ int main(int argc, char** argv) {
       stripe[i].color = HSVColor(hue, 1, 1).to_rgb();
     }*/
 
-    if (FC % 32 == 0)
+    if (spawn_dist(e) == 0)
       sprites.push_back(std::shared_ptr<Sprite>(
             new Pixel_Sprite(pos_dist(e),
                 RGBColor{col_dist(e), col_dist(e), col_dist(e)},
                 vel_dist(e))));
 
-    if (FC % 16 == 0) {
+    if (spawn_dist(e) <= 1) {
       auto pos = pos_dist(e);
       auto hue = pos / ((0.5f * STR_LEN) / 360.f);
-      hue += (FC / 10);
+      hue += (FC / 10) + hue_jitter_dist(e);
+
       sprites.push_back(std::shared_ptr<Sprite>(
             new Melting(pos, hue)));
     }
@@ -303,6 +304,6 @@ int main(int argc, char** argv) {
             std::chrono::steady_clock::now() - start
           ).count()
         << "ms. Frame " << FC << std::endl;
-    std::this_thread::sleep_until(start + std::chrono::milliseconds(80));
+    std::this_thread::sleep_until(start + std::chrono::milliseconds(40));
   }
 }
