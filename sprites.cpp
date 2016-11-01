@@ -1,6 +1,11 @@
 #include <chrono>
+#include <cstring>
+#include <exception>
 #include <list>
+#include <netdb.h>
 #include <random>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
@@ -51,7 +56,59 @@ class Sprite {
     RGBColor color;
 };
 
-int main() {
+std::vector<char> serialize(const std::vector<Pixel>& stripe) {
+  std::vector<char> res;
+  res.reserve(stripe.size() * 3);
+  for (auto& c : stripe) {
+    res.push_back(c.color.r);
+    res.push_back(c.color.g);
+    res.push_back(c.color.b);
+  }
+  return res;
+}
+
+class Sender {
+  public:
+    Sender(const std::string& hostname) {
+      struct addrinfo hints;
+      std::memset(&hints,0,sizeof(hints));
+      hints.ai_family=AF_UNSPEC;
+      hints.ai_socktype=SOCK_DGRAM;
+      hints.ai_protocol=0;
+      hints.ai_flags=AI_ADDRCONFIG;
+      int err=getaddrinfo(hostname.c_str(), "5765", &hints, &ai);
+      if (err)
+        throw std::runtime_error("failed to resolve remote socket address");
+
+      fd = socket(ai->ai_family,ai->ai_socktype,ai->ai_protocol);
+      if (fd == -1) {
+        freeaddrinfo(ai);
+        throw std::runtime_error(strerror(errno));
+      }
+    }
+
+    ~Sender() {
+      close(fd);
+      freeaddrinfo(ai);
+    }
+
+    void send(const std::vector<char>& contents) {
+      if (sendto(fd, contents.data(), contents.size(), 0, ai->ai_addr, ai->ai_addrlen) == -1)
+        throw std::runtime_error(strerror(errno));
+    }
+
+  private:
+    struct addrinfo* ai = NULL;
+    int fd = 0;
+};
+
+int main(int argc, char** argv) {
+  if (argc != 2)
+    return -1; // TODO maybe print help msg
+
+  const std::string hostname = argv[1];
+  Sender sender(hostname);
+
   std::list<Sprite> sprites;
 
   // PRNG for inserting new sprites.
@@ -80,7 +137,7 @@ int main() {
         spr_it = sprites.erase(spr_it);
     }
 
-    // TODO output
+    sender.send(serialize(stripe));
 
     std::this_thread::sleep_until(start + std::chrono::milliseconds(100));
   }
