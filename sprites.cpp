@@ -1,7 +1,9 @@
-#include <random>
+#include <chrono>
 #include <list>
-#include <vector>
+#include <random>
+#include <thread>
 #include <unistd.h>
+#include <vector>
 
 static const unsigned STR_LEN = 1180;
 
@@ -58,6 +60,9 @@ int main() {
   std::uniform_int_distribution<int> dist(0, STR_LEN - 1);
 
   for (;;) { // Frame loop
+    // Set up clock so we can sleep at the end of the frame
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now(); 
+
     std::vector<Pixel> stripe(STR_LEN); // Frame buffer
 
     // Insert new sprites
@@ -76,6 +81,7 @@ int main() {
     }
 
     // TODO output
-    // TODO sleeeeeeep
+
+    std::this_thread::sleep_until(start + std::chrono::milliseconds(100));
   }
 }
