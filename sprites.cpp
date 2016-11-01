@@ -86,35 +86,46 @@ class Pixel_Sprite : public Sprite {
       float rpos = std::modf(position, &ipos);
       const size_t pos = ipos;
       if (pos - 1 < stripe.size() && pos - 1 > 0)
-        stripe[pos - 1].color += color * (1 - rpos);
+        stripe[pos - 1].color += render_color * (1 - rpos);
       if (pos < stripe.size() && pos > 0)
-        stripe[pos].color += color;
+        stripe[pos].color += render_color;
       if (pos + 1 < stripe.size() && pos + 1 > 0)
-        stripe[pos + 1].color += color * rpos;
+        stripe[pos + 1].color += render_color * rpos;
     }
 
     // Call once each frame to update internal data.
     // Returns false if sprite can be removed from scene.
     bool update() {
       // Drift
-      position += velocity;
+      if (age > 40)
+      {
+        if (age < 50)
+          velocity += 0.1 * max_velocity;
+        position += velocity;
+      }
 
-      if (age > 100)
-        color *= 0.98;
+      if (age < 30)
+        render_color = color * (age / 30.f);
+      else if (age > 100)
+        render_color = color *= (200 - age) / 100.f;
+      else
+        render_color = color;
 
       // Age and see if we're still alive
       return age++ <= 200;
     }
 
     // Starts a new sprite
-    Pixel_Sprite(size_t position, const RGBColor& color, float velocity)
-      : position(position), velocity(velocity), age(0), color(color) { }
+    Pixel_Sprite(size_t position, const RGBColor& color, float max_velocity)
+      : position(position), max_velocity(max_velocity), velocity(0), age(0), color(color) { }
 
   private:
     float position;
+    float max_velocity;
     float velocity;
     unsigned int age;
     RGBColor color;
+    RGBColor render_color;
 };
 
 class Melting : public Sprite {
