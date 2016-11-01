@@ -24,12 +24,17 @@ struct RGBColor {
     return *this;
   }
 
+  RGBColor& operator*=(const float f) {
+    r = r * f;
+    g = g * f;
+    b = b * f;
+    return *this;
+  }
+
   friend RGBColor operator*(const RGBColor& c, float f) {
-    return RGBColor{
-      static_cast<unsigned char>(static_cast<float>(c.r) * f),
-      static_cast<unsigned char>(static_cast<float>(c.g) * f),
-      static_cast<unsigned char>(static_cast<float>(c.b) * f)
-    };
+    RGBColor res = c;
+    res *= f;
+    return res;
   }
 };
 
@@ -77,9 +82,15 @@ class Pixel_Sprite : public Sprite {
   public:
     // Renders the sprite onto the stripe buffer.
     void render(std::vector<Pixel>& stripe) const {
-      const size_t pos = static_cast<size_t>(position);
-      if (pos < stripe.size())
+      float ipos;
+      float rpos = std::modf(position, &ipos);
+      const size_t pos = ipos;
+      if (pos - 1 < stripe.size() && pos - 1 > 0)
+        stripe[pos - 1].color += color * (1 - rpos);
+      if (pos < stripe.size() && pos > 0)
         stripe[pos].color += color;
+      if (pos + 1 < stripe.size() && pos + 1 > 0)
+        stripe[pos + 1].color += color * rpos;
     }
 
     // Call once each frame to update internal data.
@@ -88,8 +99,11 @@ class Pixel_Sprite : public Sprite {
       // Drift
       position += velocity;
 
+      if (age > 100)
+        color *= 0.98;
+
       // Age and see if we're still alive
-      return age++ <= 100;
+      return age++ <= 200;
     }
 
     // Starts a new sprite
@@ -127,27 +141,32 @@ class Melting : public Sprite {
     }
 
     bool update() {
+      if (age++ < 100)
+        return true;
+
       width += 0.2;
       return (dim() > 1.f/255);
     }
 
     Melting(unsigned int position, float hue)
-      : width(INITIAL_WIDTH), position(position), color(HSVColor{hue, 1, 1}) {
+      : width(INITIAL_WIDTH), position(position), color(HSVColor{hue, 1, 1}), age(0) {
     }
 
   private:
-    static float INITIAL_WIDTH;
+    const float INITIAL_WIDTH = 30;
     float width;
     int position;
     HSVColor color;
+    unsigned int age;
 
     float dim() const {
+      if (age < 100)
+        return (age * age) / 10000.f;
+
       const auto d = static_cast<float>(INITIAL_WIDTH) / width;
       return d * d * d;
     }
 };
-
-float Melting::INITIAL_WIDTH = 30;
 
 std::vector<char> serialize(const std::vector<Pixel>& stripe) {
   std::vector<char> res;
@@ -219,14 +238,16 @@ int main(int argc, char** argv) {
     std::vector<Pixel> stripe(STR_LEN); // Frame buffer
 
     // Insert new sprites
-    /*for (auto i = 0; i < 3; i++)
+    static unsigned FC = 0;
+    FC++;
+
+    if (FC % 32 == 0)
       sprites.push_back(std::shared_ptr<Sprite>(
             new Pixel_Sprite(pos_dist(e),
                 RGBColor{col_dist(e), col_dist(e), col_dist(e)},
-                vel_dist(e))));*/
+                vel_dist(e))));
 
-    static unsigned FC = 0;
-    if (FC++ % 16 == 0)
+    if (FC % 16 == 0)
       sprites.push_back(std::shared_ptr<Sprite>(
             new Melting(pos_dist(e), hue_dist(e))));
 
