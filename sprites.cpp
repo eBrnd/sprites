@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstring>
 #include <exception>
+#include <iostream>
 #include <list>
 #include <netdb.h>
 #include <random>
@@ -33,25 +34,28 @@ class Sprite {
   public:
     // Renders the sprite onto the stripe buffer.
     void render(std::vector<Pixel>& stripe) const {
-      if (position < stripe.size())
-        stripe[position].color += color;
+      const size_t pos = static_cast<size_t>(position);
+      if (pos < stripe.size())
+        stripe[pos].color += color;
     }
 
     // Call once each frame to update internal data.
     // Returns false if sprite can be removed from scene.
     bool update() {
       // Drift
-      position--;
+      position += velocity;
 
       // Age and see if we're still alive
       return age++ <= 100;
     }
 
     // Starts a new sprite
-    Sprite(size_t position, const RGBColor& color) : position(position), age(0), color(color) { }
+    Sprite(size_t position, const RGBColor& color, float velocity)
+      : position(position), age(0), color(color), velocity(velocity) { }
 
   private:
-    size_t position;
+    float position;
+    float velocity;
     unsigned int age;
     RGBColor color;
 };
@@ -116,6 +120,7 @@ int main(int argc, char** argv) {
   std::default_random_engine e(r());
   std::uniform_int_distribution<int> pos_dist(0, STR_LEN - 1);
   std::uniform_int_distribution<unsigned char> col_dist(0, 255);
+  std::uniform_real_distribution<float> vel_dist(-2, 2);
 
   for (;;) { // Frame loop
     // Set up clock so we can sleep at the end of the frame
@@ -124,7 +129,9 @@ int main(int argc, char** argv) {
     std::vector<Pixel> stripe(STR_LEN); // Frame buffer
 
     // Insert new sprites
-    sprites.push_back(Sprite(pos_dist(e), RGBColor{col_dist(e), col_dist(e), col_dist(e)}));
+    for (auto i = 0; i < 3; i++)
+      sprites.push_back(Sprite(pos_dist(e), RGBColor{col_dist(e), col_dist(e), col_dist(e)},
+          vel_dist(e)));
 
     // Render all sprites
     for (auto& sprite : sprites)
@@ -138,6 +145,7 @@ int main(int argc, char** argv) {
         spr_it = sprites.erase(spr_it);
     }
 
+    std::cout << "Rendering " << sprites.size() << " sprites." << std::endl;
     sender.send(serialize(stripe));
 
     std::this_thread::sleep_until(start + std::chrono::milliseconds(80));
