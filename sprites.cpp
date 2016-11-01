@@ -1,6 +1,9 @@
+#include <random>
 #include <list>
 #include <vector>
 #include <unistd.h>
+
+static const unsigned STR_LEN = 1180;
 
 struct RGBColor {
   unsigned char r, g, b;
@@ -38,7 +41,7 @@ class Sprite {
     }
 
     // Starts a new sprite
-    Sprite(size_t position) : position(position), age(0) { }
+    Sprite(size_t position) : position(position), age(0), color{255,255,255} { }
 
   private:
     size_t position;
@@ -48,8 +51,18 @@ class Sprite {
 
 int main() {
   std::list<Sprite> sprites;
+
+  // PRNG for inserting new sprites.
+  std::random_device r;
+  std::default_random_engine e(r());
+  std::uniform_int_distribution<int> dist(0, STR_LEN - 1);
+
   for (;;) { // Frame loop
-    std::vector<Pixel> stripe;
+    std::vector<Pixel> stripe(STR_LEN); // Frame buffer
+
+    // Insert new sprites
+    sprites.push_back(Sprite(dist(e)));
+
     // Render all sprites
     for (auto& sprite : sprites)
       sprite.render(stripe);
