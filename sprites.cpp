@@ -28,9 +28,13 @@ struct Pixel {
   RGBColor color;
 };
 
-// Idea: The sprite class could be an abstract superclass / define a common interface to all kinds
-// of sprites to be rendered at the same time.
 class Sprite {
+  public:
+    virtual void render(std::vector<Pixel>& stripe) const = 0;
+    virtual bool update() = 0;
+};
+
+class Pixel_Sprite : public Sprite {
   public:
     // Renders the sprite onto the stripe buffer.
     void render(std::vector<Pixel>& stripe) const {
@@ -50,8 +54,8 @@ class Sprite {
     }
 
     // Starts a new sprite
-    Sprite(size_t position, const RGBColor& color, float velocity)
-      : position(position), age(0), color(color), velocity(velocity) { }
+    Pixel_Sprite(size_t position, const RGBColor& color, float velocity)
+      : position(position), velocity(velocity), age(0), color(color) { }
 
   private:
     float position;
@@ -113,7 +117,7 @@ int main(int argc, char** argv) {
   const std::string hostname = argv[1];
   Sender sender(hostname);
 
-  std::list<Sprite> sprites;
+  std::list<std::shared_ptr<Sprite>> sprites;
 
   // PRNG for inserting new sprites.
   std::random_device r;
@@ -130,16 +134,18 @@ int main(int argc, char** argv) {
 
     // Insert new sprites
     for (auto i = 0; i < 3; i++)
-      sprites.push_back(Sprite(pos_dist(e), RGBColor{col_dist(e), col_dist(e), col_dist(e)},
-          vel_dist(e)));
+      sprites.push_back(std::shared_ptr<Sprite>(
+            new Pixel_Sprite(pos_dist(e),
+                RGBColor{col_dist(e), col_dist(e), col_dist(e)},
+                vel_dist(e))));
 
     // Render all sprites
     for (auto& sprite : sprites)
-      sprite.render(stripe);
+      sprite->render(stripe);
 
     // Update all sprites and remove the ones that died
     for (auto spr_it = sprites.begin(); spr_it != sprites.end(); ) {
-      if (spr_it->update())
+      if ((*spr_it)->update())
         spr_it++;
       else
         spr_it = sprites.erase(spr_it);
