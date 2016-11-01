@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <iostream>
@@ -107,19 +108,28 @@ class Melting : public Sprite {
     void render(std::vector<Pixel>& stripe) const {
       auto render_color = color;
       const auto dim = static_cast<float>(INITIAL_WIDTH) / width;
-      std::cout << dim << std::endl;
       render_color.v *= dim * dim;
+      float ihwidth;
+      float frhwidth = std::modf(width / 2, &ihwidth);
+      const int ihw = ihwidth;
 
-      for (int i = -(width / 2); i < width / 2; i++) {
+      for (int i = -ihw; i < ihw; i++) {
         if (position + i < static_cast<int>(stripe.size()) && position + i > 0) {
           stripe[position + i].color += render_color.to_rgb();
         }
       }
+
+      // Brightness interpolation for the two pixels at the end
+      render_color.v *= frhwidth;
+      if (position - ihw < static_cast<int>(stripe.size()) && position - ihw > 0)
+        stripe[position - ihw - 1].color += render_color.to_rgb();
+      if (position + ihw < static_cast<int>(stripe.size()) && position + ihw > 0)
+        stripe[position + ihw].color += render_color.to_rgb();
     }
 
     bool update() {
       age++;
-      width++;
+      width += 1;
       return (age < 1000);
     }
 
@@ -128,14 +138,14 @@ class Melting : public Sprite {
     }
 
   private:
-    static int INITIAL_WIDTH;
-    int width;
+    static float INITIAL_WIDTH;
+    float width;
     int position;
     unsigned int age;
     HSVColor color;
 };
 
-int Melting::INITIAL_WIDTH = 10;
+float Melting::INITIAL_WIDTH = 10;
 
 std::vector<char> serialize(const std::vector<Pixel>& stripe) {
   std::vector<char> res;
